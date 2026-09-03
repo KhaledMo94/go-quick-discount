@@ -13,6 +13,10 @@ import (
 	"github.com/KhaledMo94/quick-discount/internal/db"
 	"github.com/KhaledMo94/quick-discount/internal/redis"
 	"github.com/KhaledMo94/quick-discount/internal/logger"
+	"github.com/KhaledMo94/quick-discount/internal/server"
+	"github.com/KhaledMo94/quick-discount/internal/handler"
+	"github.com/KhaledMo94/quick-discount/internal/meliesearch"
+	
 )
 
 func main(){
@@ -36,8 +40,17 @@ func main(){
 	}
 	defer redisConn.Close()
 
+	msConn , err := meliesearch.New(cnfg.MEILISEARCH_HOST , cnfg.MEILISEARCH_KEY)
+	if err != nil {
+		log.Fatalf("Meilesearch Connection failed : %v",err)
+	}
+	defer msConn.Close() //it`s http request closed after data retrieving
 
-	slog.Info("app started", "mysql", cnfg.DBHost, "redis", cnfg.RedisAddr())
+	slog.Info("app started", "mysql", cnfg.DBHost, "redis", cnfg.RedisAddr() , "ms health",msConn.IsHealthy())
+
+	h := handler.New(dbConn , redisConn , msConn)
+	srv := server.New(":8000",h.Routes())
+	srv.Start()
 
 	ctx , stop := signal.NotifyContext(context.Background(),os.Interrupt,syscall.SIGTERM)
 	defer stop()

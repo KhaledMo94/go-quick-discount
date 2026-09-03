@@ -30,8 +30,12 @@ func New(addr string , password string , dbIndex int) (*Redis , error){
 	return &Redis{client} , nil
 }
 
-func Close(r *Redis) error {
+func (r *Redis) Close() error {
 	slog.Info("Redis Connection Closed")
 
 	return r.Client.Close()
+}
+
+func (r *Redis) Ping(ctx context.Context) error {
+	return r.Client.Ping(ctx).Err()
 }

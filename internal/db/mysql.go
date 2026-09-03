@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,11 @@ type DB struct {
 }
 
 func New(dsn string , driver string) (*DB , error){
+
+	if driver == ""{
+		driver = "mysql"
+	}
+
 	conn , err := sql.Open(driver , dsn)
 	if err != nil {
 		return nil, fmt.Errorf("db: open failed: %w", err)
@@ -30,5 +36,13 @@ func New(dsn string , driver string) (*DB , error){
 	slog.Info("Database Connection Established")
 
 	return &DB{conn} , nil
+}
 
+func (db *DB) Close() error {
+	slog.Info("Database Connection Closed")
+	return db.DB.Close()
+}
+
+func (db *DB) Ping(ctx context.Context) error {
+	return db.DB.PingContext(ctx)
 }

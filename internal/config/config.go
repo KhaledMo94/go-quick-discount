@@ -29,6 +29,10 @@ type Config struct {
 	RedisPort     string
 	RedisPassword string
 	RedisDB       int
+
+	MEILISEARCH_HOST string
+	MEILISEARCH_KEY string
+	SCOUT_PREFIX string
 }
 
 func Load() (*Config , error){
@@ -53,8 +57,11 @@ func Load() (*Config , error){
 		os.Getenv("DB_CONNECTION"),
 		os.Getenv("REDIS_HOST"),
 		os.Getenv("REDIS_PORT"),
-		os.Getenv("REDIS_PASSWORD"), // ok if empty — no-auth Redis is common locally
+		os.Getenv("REDIS_PASSWORD"),
 		redisDB,
+		os.Getenv("MEILISEARCH_HOST"),
+		os.Getenv("MEILISEARCH_KEY"),
+		os.Getenv("SCOUT_PREFIX"),
 	}
 
 	if cfg.DBName == "" || cfg.DBUser == "" || cfg.DBHost == "" || cfg.DBPort == "" {
@@ -72,3 +79,4 @@ func (cfg *Config) DSN() string {
 func (cfg *Config) RedisAddr() string {
 	return fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort)
 }
+
