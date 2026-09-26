@@ -18,6 +18,8 @@ func getEnvOrDefault(key string , defaultValue string) string{
 }
 
 type Config struct {
+	AppURL 		string
+
 	DBUser     	string
 	DBPassword 	string
 	DBHost     	string
@@ -33,6 +35,9 @@ type Config struct {
 	MEILISEARCH_HOST string
 	MEILISEARCH_KEY string
 	SCOUT_PREFIX string
+
+	APP_LOCALE	string
+	APP_FALLBACK_LOCALE string
 }
 
 func Load() (*Config , error){
@@ -49,6 +54,7 @@ func Load() (*Config , error){
 	}
 
 	cfg := &Config{
+		os.Getenv("APP_URL"),
 		os.Getenv("DB_USERNAME"),
 		os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_HOST"),
@@ -62,6 +68,8 @@ func Load() (*Config , error){
 		os.Getenv("MEILISEARCH_HOST"),
 		os.Getenv("MEILISEARCH_KEY"),
 		os.Getenv("SCOUT_PREFIX"),
+		os.Getenv("APP_LOCALE"),
+		os.Getenv("APP_FALLBACK_LOCALE"),
 	}
 
 	if cfg.DBName == "" || cfg.DBUser == "" || cfg.DBHost == "" || cfg.DBPort == "" {
@@ -78,5 +86,19 @@ func (cfg *Config) DSN() string {
 
 func (cfg *Config) RedisAddr() string {
 	return fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort)
+}
+
+func (cfg *Config) Locale() string {
+	locale := "en"
+
+	if cfg.APP_FALLBACK_LOCALE != ""{
+		locale = cfg.APP_FALLBACK_LOCALE
+	}
+
+	if cfg.APP_LOCALE != ""{
+		locale = cfg.APP_LOCALE
+	}
+
+	return locale
 }
 

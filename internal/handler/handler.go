@@ -2,37 +2,61 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
-)
 
+	"github.com/KhaledMo94/quick-discount/internal/handler/middleware"
+	"github.com/KhaledMo94/quick-discount/internal/i18n"
+	"github.com/gin-gonic/gin"
+)
 
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
-type Handler struct{
-	db    Pinger
-	redis Pinger
-	ms Pinger
+type Handler struct {
+	db             Pinger
+	redis          Pinger
+	ms             Pinger
+	MainCategories *MainCategoryHandler
+	tr             *i18n.Translator
+	defaultLocale  string
 }
 
-func New(dbConn Pinger, redisConn Pinger , msConn Pinger) *Handler{
-	return  &Handler{
-		db:    dbConn,
-		redis: redisConn,
-		ms : msConn,
+func New(
+	dbConn, redisConn, msConn Pinger,
+	mainCategories *MainCategoryHandler,
+	tr *i18n.Translator,
+	defaultLocale string,
+) *Handler {
+	return &Handler{
+		db:             dbConn,
+		redis:          redisConn,
+		ms:             msConn,
+		MainCategories: mainCategories,
+		tr:             tr,
+		defaultLocale:  defaultLocale,
 	}
 }
 
 func (h *Handler) Routes() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health",h.health)
-	return mux
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.Locale(h.defaultLocale))
+	router.GET("/health", h.health)
+
+	api := router.Group("/api")
+	{
+		mc := api.Group("/main-categories")
+		{
+			mc.GET("", h.MainCategories.Index)
+		}
+	}
+
+	return router
 }
 
-func (h *Handler) health(w http.ResponseWriter , r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) health(c *gin.Context) {
+	ctx := c.Request.Context()
 	dbError := h.db.Ping(ctx)
 	redisError := h.redis.Ping(ctx)
 	msError := h.ms.Ping(ctx)
@@ -45,7 +69,5 @@ func (h *Handler) health(w http.ResponseWriter , r *http.Request) {
 		code = http.StatusServiceUnavailable
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"status":status})
+	c.JSON(code, gin.H{"status": status})
 }

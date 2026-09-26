@@ -11,12 +11,14 @@ import (
 
 	"github.com/KhaledMo94/quick-discount/internal/config"
 	"github.com/KhaledMo94/quick-discount/internal/db"
-	"github.com/KhaledMo94/quick-discount/internal/redis"
-	"github.com/KhaledMo94/quick-discount/internal/logger"
-	"github.com/KhaledMo94/quick-discount/internal/server"
 	"github.com/KhaledMo94/quick-discount/internal/handler"
+	"github.com/KhaledMo94/quick-discount/internal/i18n"
+	"github.com/KhaledMo94/quick-discount/internal/logger"
 	"github.com/KhaledMo94/quick-discount/internal/meliesearch"
-	
+	"github.com/KhaledMo94/quick-discount/internal/redis"
+	"github.com/KhaledMo94/quick-discount/internal/repository"
+	"github.com/KhaledMo94/quick-discount/internal/server"
+	"github.com/KhaledMo94/quick-discount/internal/service"
 )
 
 func main(){
@@ -48,7 +50,24 @@ func main(){
 
 	slog.Info("app started", "mysql", cnfg.DBHost, "redis", cnfg.RedisAddr() , "ms health",msConn.IsHealthy())
 
-	h := handler.New(dbConn , redisConn , msConn)
+	gormDB, err := db.NewGorm(cnfg.DSN())
+	if err != nil {
+		log.Fatalf("gorm connection failed: %v", err)
+	}
+	defer gormDB.Close()
+
+	locale := cnfg.Locale()
+	appURL := cnfg.AppURL
+	tr,err := i18n.New("lang",locale)
+	if err != nil{
+		log.Fatalf("translator loading failed : %v",err)
+	}
+
+	//main categories 
+	mainCategoryRepo := repository.NewMainCategoryRepository(gormDB)
+	mainCategoryService := service.NewMainCategoryService(mainCategoryRepo)
+	mainCategoryHandler := handler.NewMainCategoryHandler(mainCategoryService, locale, appURL,tr)
+	h := handler.New(dbConn, redisConn, msConn, mainCategoryHandler, tr, locale)
 	srv := server.New(":8000",h.Routes())
 	srv.Start()
 
@@ -60,5 +79,9 @@ func main(){
 
 	shutDownContext , cancel := context.WithTimeout(context.Background(),5 * time.Second)
 	defer cancel()
-	_ = shutDownContext
+	if err := srv.Shutdown(shutDownContext); err!= nil{
+		slog.Error("http server shutdown error", "error", err)
+	}
+
+	slog.Info("shutdown complete")
 }

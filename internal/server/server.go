@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -27,7 +28,7 @@ func New(addr string , handler http.Handler) *Server{
 func (s *Server) Start() {
 	go func(){
 		slog.Info("http server listening", "addr", s.httpServer.Addr)
-		if err := s.httpServer.ListenAndServe(); err != nil {
+		if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("http server failed", "error", err)
 		}
 	}()
